@@ -236,3 +236,92 @@ resource "azurerm_linux_virtual_machine" "quickstart-node" {
     }
   }
 }
+
+
+
+# Azure network interface for quickstart-node2 resources
+resource "azurerm_network_interface" "quickstart-node2-interface" {
+  name                = "quickstart-node2-interface"
+  location            = azurerm_resource_group.rancher-quickstart.location
+  resource_group_name = azurerm_resource_group.rancher-quickstart.name
+
+  ip_configuration {
+    name                          = "rancher_server_ip_config"
+    subnet_id                     = azurerm_subnet.rancher-quickstart-internal.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.quickstart-node2-pip.id
+  }
+
+  tags = {
+    Creator = "rancher-quickstart"
+  }
+}
+
+resource "azurerm_public_ip" "quickstart-node2-pip" {
+  name                = "quickstart-node2-pip"
+  location            = azurerm_resource_group.rancher-quickstart.location
+  resource_group_name = azurerm_resource_group.rancher-quickstart.name
+  allocation_method   = "Dynamic"
+
+  tags = {
+    Creator = "rancher-quickstart"
+  }
+}
+
+
+
+# Azure linux virtual machine for creating a multi-node RKE cluster
+resource "azurerm_linux_virtual_machine" "quickstart-node2" {
+  name                  = "${var.prefix}-quickstart-node2"
+  computer_name         = "${local.computer_name_prefix}-qn2" // ensure computer_name meets 15 character limit
+  location              = azurerm_resource_group.rancher-quickstart.location
+  resource_group_name   = azurerm_resource_group.rancher-quickstart.name
+  network_interface_ids = [azurerm_network_interface.quickstart-node2-interface.id]
+  size                  = var.instance_type
+  admin_username        = local.node_username
+
+  custom_data = base64encode(
+    templatefile(
+      "${path.module}/files/userdata_quickstart_node.template",
+      {
+        register_command = module.rancher_common.custom_cluster_command
+      }
+    )
+  )
+
+  source_image_reference {
+    publisher = "SUSE"
+    offer     = "sles-15-sp2"
+    sku       = "gen2"
+    version   = "latest"
+  }
+
+  admin_ssh_key {
+    username   = local.node_username
+    public_key = tls_private_key.global_key.public_key_openssh
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+  }
+
+  tags = {
+    Creator = "rancher-quickstart"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "echo 'Waiting for cloud-init to complete...'",
+      "cloud-init status --wait > /dev/null",
+      "echo 'Completed cloud-init!'",
+    ]
+
+    connection {
+      type        = "ssh"
+      host        = self.public_ip_address
+      user        = local.node_username
+      private_key = tls_private_key.global_key.private_key_pem
+    }
+  }
+}
