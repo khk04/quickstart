@@ -35,7 +35,7 @@ variable "prefix" {
 variable "instance_type" {
   type        = string
   description = "Instance type used for all linux virtual machines"
-  default     = "Standard_DS2_v2"
+  default     = "Standard_DS3_v2"
 }
 
 variable "rancher_kubernetes_version" {
