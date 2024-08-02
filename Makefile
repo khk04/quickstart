@@ -1,5 +1,5 @@
-PROVIDERS = rancher/rancher-common rancher/azure 
-CLOUD_PROVIDERS = rancher/azure
+PROVIDERS = rancher/rancher-common rancher/azure  rancher/aws
+CLOUD_PROVIDERS = rancher/azure rancher/aws	
 
 upgrade-targets = $(addprefix upgrade-, $(PROVIDERS))
 docs-targets = $(addprefix docs-, $(PROVIDERS))
